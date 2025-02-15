@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Mejoras de Seguridad</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        header {
+            background-color: #0073e6;
+            color: white;
+            text-align: center;
+            padding: 1em;
+        }
+        main {
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #0073e6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005bb5;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9f7ef;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            display: none;
+        }
+        #fotoPreview {
+            margin-top: 10px;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Formulario de Mejoras de Seguridad</h1>
+    </header>
+    <main>
+        <div class="container">
+            <h2>Registro de Mejoras</h2>
+            <form id="mejorasForm">
+                <label for="foto">Foto del Puesto de Trabajo:</label>
+                <input type="file" id="foto" name="foto" accept="image/*" capture="environment" required>
+                <img id="fotoPreview" src="#" alt="Vista previa de la foto" style="display: none;">
+                <label for="mejoras">Sugerencias por Voz:</label>
+                <button type="button" id="startVoice">Hablar</button>
+                <textarea id="mejoras" name="mejoras" rows="4" placeholder="Habla para registrar sugerencias..." required></textarea>
+                <label for="plazo">Plazo de Realización:</label>
+                <input type="date" id="plazo" name="plazo" required>
+                <label for="responsable">Responsable:</label>
+                <input type="text" id="responsable" name="responsable" placeholder="Nombre del responsable" required>
+                <label for="observaciones">Observaciones:</label>
+                <textarea id="observaciones" name="observaciones" rows="4" placeholder="Notas adicionales"></textarea>
+                <label for="fechaRealizacion">Fecha de Realización:</label>
+                <input type="date" id="fechaRealizacion" name="fechaRealizacion">
+                <button type="submit">Guardar Registro</button>
+            </form>
+            <div class="result" id="result">
+                <h3>Registro Guardado</h3>
+                <p id="resultadoTexto">Los datos han sido guardados correctamente.</p>
+            </div>
+        </div>
+    </main>
+    <!-- Agrega Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js"></script>
+    <script>
+        // Tu configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBa9XHE9DKxQi28bE4hnJvAiX7Y6nJ6pRQ",
+            authDomain: "hs-relevamientos.firebaseapp.com",
+            projectId: "hs-relevamientos",
+            storageBucket: "hs-relevamientos.firebasestorage.app",
+            messagingSenderId: "597296017199",
+            appId: "1:597296017199:web:45b07232f345849ab73bda",
+            measurementId: "G-LHMW37KBTG"
+        };
+
+        // Inicializa Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Vista previa de la foto
+        document.getElementById('foto').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('fotoPreview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Reconocimiento de voz
+        const voiceButton = document.getElementById('startVoice');
+        const mejorasTextarea = document.getElementById('mejoras');
+        const recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (recognition) {
+            const speechRecognition = new recognition();
+            speechRecognition.lang = 'es-ES';
+            speechRecognition.interimResults = false;
+            voiceButton.addEventListener('click', () => {
+                speechRecognition.start();
+                voiceButton.textContent = 'Escuchando...';
+            });
+            speechRecognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                mejorasTextarea.value = transcript;
+                voiceButton.textContent = 'Hablar';
+            };
+            speechRecognition.onerror = function() {
+                alert('Error al capturar la voz. Inténtalo de nuevo.');
+                voiceButton.textContent = 'Hablar';
+            };
+            speechRecognition.onend = function() {
+                voiceButton.textContent = 'Hablar';
+            };
+        } else {
+            voiceButton.disabled = true;
+            voiceButton.title = 'El reconocimiento de voz no está disponible en este navegador.';
+        }
+
+        // Guardar el formulario en Firebase
+        document.getElementById('mejorasForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            // Obtener los valores del formulario
+            const fotoInput = document.getElementById('foto').files[0];
+            const mejoras = document.getElementById('mejoras').value;
+            const plazo = document.getElementById('plazo').value;
+            const responsable = document.getElementById('responsable').value;
+            const observaciones = document.getElementById('observaciones').value;
+            const fechaRealizacion = document.getElementById('fechaRealizacion').value;
+
+            // Convertir la foto a Base64
+            let fotoBase64 = null;
+            if (fotoInput) {
+                const reader = new FileReader();
+                await new Promise((resolve) => {
+                    reader.onload = () => {
+                        fotoBase64 = reader.result;
+                        resolve();
+                    };
+                    reader.readAsDataURL(fotoInput);
+                });
+            }
+
+            // Guardar los datos en Firestore
+            try {
+                await db.collection('registros').add({
+                    foto: fotoBase64,
+                    mejoras: mejoras,
+                    plazo: plazo,
+                    responsable: responsable,
+                    observaciones: observaciones,
+                    fechaRealizacion: fechaRealizacion,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert('Datos guardados correctamente.');
+                document.getElementById('result').style.display = 'block';
+            } catch (error) {
+                console.error('Error al guardar los datos:', error);
+                alert('Hubo un error al guardar los datos. Inténtalo de nuevo.');
+            }
+        });
+    </script>
+</body>
+</html>
